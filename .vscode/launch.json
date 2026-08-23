@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:clipdoctor}",
+            "name": "Debug clipdoctor",
+            "target": "clipdoctor",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug clipdoctor"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:clipdoctor}",
+            "name": "Release clipdoctor",
+            "target": "clipdoctor",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release clipdoctor"
+        }
+    ]
+}
