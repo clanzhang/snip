@@ -54,9 +54,8 @@ final class ClipboardMonitor {
         let app = AppInfo.frontmost()
         let types = pasteboard.types ?? []
         let typeDesc = describeTypes(types)
-        let preview = contentPreview(types: types)
 
-        logger.log("剪贴板变化 | changeCount: \(currentCount) | 应用: \(app.name)(\(app.bundleID)) | 类型: \(typeDesc)\(preview)")
+        logger.log("剪贴板变化 | changeCount: \(currentCount) | 应用: \(app.name)(\(app.bundleID)) | 类型: \(typeDesc)")
     }
 
     // MARK: - 内容描述
