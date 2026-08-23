@@ -5,7 +5,12 @@
 # ===========================================
 set -euo pipefail
 
-BINARY="${CLIPDOCTOR_BIN:-/usr/local/bin/clipdoctor}"
+# 自动查找 clipdoctor：先看同目录，再查 PATH
+if [ -x "$(dirname "$0")/clipdoctor" ]; then
+    BINARY="$(dirname "$0")/clipdoctor"
+else
+    BINARY="$(command -v clipdoctor 2>/dev/null || echo /usr/local/bin/clipdoctor)"
+fi
 PID_FILE="$HOME/.cmdcv/clipdoctor.pid"
 LOG_DIR="$HOME/.cmdcv"
 MONITOR_LOG="$LOG_DIR/monitor.log"
