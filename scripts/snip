@@ -1,0 +1,81 @@
+#!/bin/bash
+# ===========================================
+# ClipDoctor 快速启动脚本
+# 用法: ./scripts/clipdoctor.sh [start|stop|status|log]
+# ===========================================
+set -euo pipefail
+
+BINARY="${CLIPDOCTOR_BIN:-/usr/local/bin/clipdoctor}"
+PID_FILE="$HOME/.cmdcv/clipdoctor.pid"
+LOG_DIR="$HOME/.cmdcv"
+MONITOR_LOG="$LOG_DIR/monitor.log"
+
+# 确保二进制存在
+if [ ! -f "$BINARY" ]; then
+    echo "NOTFOUND $BINARY"
+    exit 1
+fi
+
+mkdir -p "$LOG_DIR"
+
+cmd_start() {
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "WARN ClipDoctor 已在运行中 (PID: $(cat "$PID_FILE"))"
+        exit 0
+    fi
+
+    echo "START ClipDoctor..."
+    nohup "$BINARY" > /dev/null 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "OK 已启动 (PID: $!)"
+    echo "   日志文件: $MONITOR_LOG"
+    echo "   查看日志: snip log"
+}
+
+cmd_stop() {
+    if [ ! -f "$PID_FILE" ]; then
+        echo "WARN ClipDoctor 未在运行"
+        exit 0
+    fi
+
+    PID=$(cat "$PID_FILE")
+    if kill "$PID" 2>/dev/null; then
+        rm -f "$PID_FILE"
+        echo "OK 已停止 (PID: $PID)"
+    else
+        echo "WARN 进程不存在，清理 PID 文件"
+        rm -f "$PID_FILE"
+    fi
+}
+
+cmd_status() {
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        PID=$(cat "$PID_FILE")
+        echo "OK ClipDoctor 运行中 (PID: $PID)"
+        echo "   日志: $MONITOR_LOG"
+        echo "   最近 5 条记录:"
+        tail -5 "$MONITOR_LOG" 2>/dev/null || echo "   (暂无记录)"
+    else
+        echo "STOP ClipDoctor 未运行"
+    fi
+}
+
+cmd_log() {
+    if [ -f "$MONITOR_LOG" ]; then
+        tail -f "$MONITOR_LOG"
+    else
+        echo "EMPTY 暂无日志"
+    fi
+}
+
+case "${1:-start}" in
+    start)   cmd_start ;;
+    stop)    cmd_stop ;;
+    status)  cmd_status ;;
+    log)     cmd_log ;;
+    restart) cmd_stop; sleep 1; cmd_start ;;
+    *)
+        echo "用法: $0 {start|stop|restart|status|log}"
+        exit 1
+        ;;
+esac
