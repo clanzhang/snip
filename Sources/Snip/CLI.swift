@@ -27,17 +27,6 @@ struct CLI {
           --help     查看帮助
           --version  查看版本
 
-        示例:
-          snip watch
-          snip watch --json --log
-          snip keys
-          snip keys --all-keys --json
-          snip all
-          snip doctor
-          snip test --clipboard
-          snip test --keys
-          snip stats
-          snip report
         """)
     }
 
