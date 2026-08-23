@@ -23,6 +23,7 @@ struct CLI {
 
         通用参数:
           --json     JSON Lines 输出
+          --verbose  详细技术字段输出
           --log      写入日志文件
           --help     查看帮助
           --version  查看版本
@@ -34,15 +35,23 @@ struct CLI {
         print("snip v1.0.0")
     }
 
+    // MARK: - 辅助：创建格式化器
+
+    private func makeFormatter(json: Bool, verbose: Bool) -> EventFormatter {
+        if json { return EventFormatter(mode: .json) }
+        if verbose { return EventFormatter(mode: .verbose) }
+        return EventFormatter(mode: .plain)
+    }
+
     // MARK: - watch
 
     func runWatch(opts: WatchOptions) {
-        let formatter = EventFormatter()
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
         let logger = opts.log ? Logger() : nil
         let watcher = ClipboardWatcher(interval: opts.interval, contentPreview: opts.contentPreview)
 
         watcher.onChange = { event in
-            let line = formatter.clipboardEvent(event, json: opts.json)
+            let line = formatter.clipboardEvent(event)
             output(line, logger: logger)
         }
 
@@ -56,7 +65,7 @@ struct CLI {
     func runKeys(opts: KeysOptions) {
         guard checkPermission() else { return }
 
-        let formatter = EventFormatter()
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
         let logger = opts.log ? Logger() : nil
 
         let combos: Set<HotKey>?
@@ -75,7 +84,7 @@ struct CLI {
         let watcher = KeyboardWatcher(combos: combos, allKeys: opts.allKeys, unsafeChars: opts.unsafeChars)
 
         watcher.onEvent = { event in
-            let line = formatter.keyboardEvent(event, json: opts.json)
+            let line = formatter.keyboardEvent(event)
             output(line, logger: logger)
         }
 
@@ -89,14 +98,15 @@ struct CLI {
     func runAll(opts: AllOptions) {
         guard checkPermission() else { return }
 
-        let formatter = EventFormatter()
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
         let logger = opts.log ? Logger() : nil
         let stats = FailureStats()
+        let failureDetector = CopyFailureDetector(timeoutMs: 800)
 
         // 剪贴板
         let cb = ClipboardWatcher(interval: opts.interval, contentPreview: opts.contentPreview)
         cb.onChange = { event in
-            let line = formatter.clipboardEvent(event, json: opts.json)
+            let line = formatter.clipboardEvent(event)
             output(line, logger: logger)
             stats.recordClipboard(type: event.types.first ?? "unknown")
         }
@@ -104,31 +114,27 @@ struct CLI {
         // 键盘
         let kb = KeyboardWatcher(combos: KeyboardWatcher.defaultCombos, allKeys: false, unsafeChars: false)
         kb.onEvent = { event in
-            let line = formatter.keyboardEvent(event, json: opts.json)
+            let line = formatter.keyboardEvent(event)
             output(line, logger: logger)
 
             // 复制失败检测
             if event.combo == "cmd+c" && event.type == .keyDown {
-                let before = NSPasteboard.general.changeCount
-                DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(800)) {
-                    let after = NSPasteboard.general.changeCount
-                    if before == after {
-                        let failure = CopyFailure(
-                            timestamp: Date(),
-                            combo: "cmd+c",
-                            app: event.appName,
-                            bundleId: event.bundleId,
-                            pid: event.pid,
-                            previousChangeCount: before,
-                            currentChangeCount: after,
-                            timeoutMs: 800
-                        )
-                        let line = formatter.copyFailureEvent(failure, json: opts.json)
-                        output(line, logger: logger)
-                        stats.recordFailure(app: failure.app)
-                    }
-                }
+                let app = AppInfo(name: event.appName, bundleId: event.bundleId, pid: event.pid)
+                failureDetector.onCopyPressed(app: app)
             }
+        }
+
+        // 失败回调
+        failureDetector.onFailure = { failure in
+            let line = formatter.copyFailureEvent(failure)
+            output(line, logger: logger)
+            stats.recordFailure(app: failure.app)
+        }
+
+        // 成功回调
+        failureDetector.onSuccess = { success in
+            let line = formatter.copySuccessEvent(success)
+            output(line, logger: logger)
         }
 
         cb.start()
@@ -228,8 +234,8 @@ struct CLI {
         }
 
         let lines = content.split(separator: "\n")
-        let totalCopies = lines.filter { $0.contains("clipboard changed") }.count
-        let failures = lines.filter { $0.contains("copy timeout") }.count
+        let totalCopies = lines.filter { $0.contains("clipboard changed") || $0.contains("剪贴板更新") }.count
+        let failures = lines.filter { $0.contains("copy timeout") || $0.contains("没变化") }.count
 
         print("最近统计：")
         print("复制事件: \(totalCopies)")

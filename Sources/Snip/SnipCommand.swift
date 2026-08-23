@@ -6,6 +6,7 @@ struct WatchOptions {
     var interval: TimeInterval = 0.3
     var contentPreview: Int = 0
     var json: Bool = false
+    var verbose: Bool = false
     var log: Bool = false
 }
 
@@ -14,6 +15,7 @@ struct KeysOptions {
     var allKeys: Bool = false
     var unsafeChars: Bool = false
     var json: Bool = false
+    var verbose: Bool = false
     var log: Bool = false
 }
 
@@ -21,6 +23,7 @@ struct AllOptions {
     var interval: TimeInterval = 0.3
     var contentPreview: Int = 0
     var json: Bool = false
+    var verbose: Bool = false
     var log: Bool = false
 }
 
@@ -87,6 +90,7 @@ enum SnipCommand {
         for (i, a) in args.enumerated() {
             switch a {
             case "--json": opts.json = true
+            case "--verbose": opts.verbose = true
             case "--log": opts.log = true
             case "--interval":
                 if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 0.3 }
@@ -107,6 +111,7 @@ enum SnipCommand {
         for (i, a) in args.enumerated() {
             switch a {
             case "--json": opts.json = true
+            case "--verbose": opts.verbose = true
             case "--log": opts.log = true
             case "--all-keys": opts.allKeys = true
             case "--unsafe-chars": opts.unsafeChars = true
@@ -125,6 +130,7 @@ enum SnipCommand {
         for (i, a) in args.enumerated() {
             switch a {
             case "--json": opts.json = true
+            case "--verbose": opts.verbose = true
             case "--log": opts.log = true
             case "--interval":
                 if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 0.3 }
