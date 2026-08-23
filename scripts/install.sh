@@ -21,6 +21,11 @@ chmod +x "$INSTALL_DIR/snip"
 cp "$PROJECT_DIR/scripts/snip" "$INSTALL_DIR/snip-ctl"
 chmod +x "$INSTALL_DIR/snip-ctl"
 
+# 添加到 ~/.zshrc
+if ! grep -qF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+    echo "已将 ~/.local/bin 添加到 ~/.zshrc"
+fi
+
 echo "安装完成: $INSTALL_DIR/snip"
-echo "确保 ~/.local/bin 在 PATH 中。"
-echo "运行: snip --help"
+echo "运行: source ~/.zshrc && snip --help"
