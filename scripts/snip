@@ -87,19 +87,31 @@ cmd_log() {
 }
 
 cmd_help() {
-    echo "ClipDoctor - macOS 剪贴板监控诊断工具"
+    echo "ClipDoctor - macOS 剪贴板 & 键盘诊断工具"
     echo ""
     echo "用法: snip <command>"
     echo ""
-    echo "命令:"
+    echo "剪贴板监控:"
     echo "  start     后台启动剪贴板监控"
     echo "  stop      停止监控"
     echo "  restart   重启监控"
     echo "  status    查看运行状态和最近日志"
     echo "  log       实时查看日志 (tail -f)"
+    echo ""
+    echo "键盘监控:"
+    echo "  keys              监控默认快捷键 (cmd+c,cmd+v,...)"
+    echo "  keys --all-keys   监控所有键盘事件"
+    echo "  keys --json       JSON Lines 输出"
+    echo "  keys --keys <list> 自定义快捷键，逗号分隔"
+    echo ""
+    echo "其他:"
     echo "  -h, --help  显示此帮助"
     echo ""
     echo "日志文件: ~/.cmdcv/monitor.log"
+}
+
+cmd_keys() {
+    exec "$BINARY" keyboard watch "$@"
 }
 
 case "${1:-start}" in
@@ -108,6 +120,7 @@ case "${1:-start}" in
     status)  cmd_status ;;
     log)     cmd_log ;;
     restart) cmd_stop; sleep 1; cmd_start ;;
+    keys)    shift; cmd_keys "$@" ;;
     -h|--help) cmd_help ;;
     *)
         cmd_help
