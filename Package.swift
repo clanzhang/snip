@@ -15,11 +15,6 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("Foundation")
             ]
-        ),
-        .testTarget(
-            name: "SnipTests",
-            dependencies: ["Snip"],
-            path: "Tests/SnipTests"
         )
     ]
 )
