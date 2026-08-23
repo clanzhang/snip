@@ -86,14 +86,31 @@ cmd_log() {
     fi
 }
 
+cmd_help() {
+    echo "ClipDoctor - macOS 剪贴板监控诊断工具"
+    echo ""
+    echo "用法: snip <command>"
+    echo ""
+    echo "命令:"
+    echo "  start     后台启动剪贴板监控"
+    echo "  stop      停止监控"
+    echo "  restart   重启监控"
+    echo "  status    查看运行状态和最近日志"
+    echo "  log       实时查看日志 (tail -f)"
+    echo "  -h, --help  显示此帮助"
+    echo ""
+    echo "日志文件: ~/.cmdcv/monitor.log"
+}
+
 case "${1:-start}" in
     start)   cmd_start ;;
     stop)    cmd_stop ;;
     status)  cmd_status ;;
     log)     cmd_log ;;
     restart) cmd_stop; sleep 1; cmd_start ;;
+    -h|--help) cmd_help ;;
     *)
-        echo "用法: $0 {start|stop|restart|status|log}"
+        cmd_help
         exit 1
         ;;
 esac
