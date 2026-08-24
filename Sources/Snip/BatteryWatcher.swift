@@ -59,8 +59,8 @@ final class BatteryWatcher {
         // 解析百分比
         let percentage = parsePercentage(from: output)
         // 解析状态
-        let isCharging = output.contains("charging")
-        let isFullyCharged = output.contains("charged")
+        let isCharging = output.contains("charging") && !output.contains("discharging")
+        let isFullyCharged = output.contains("charged") && !output.contains("discharging")
         let isPluggedIn = output.contains("AC Power")
         let powerSource = isPluggedIn ? "AC Power" : "Battery Power"
 
@@ -112,10 +112,10 @@ final class BatteryWatcher {
     }
 
     private static func fetchDetailedInfo() -> (current: Int, max: Int, design: Int, cycles: Int, temp: Double?) {
-        // 使用 system_profiler SPPowerDataType 获取详细信息
+        // ioreg -r -c AppleSmartBattery 输出所有电池属性
         let process = Process()
-        process.launchPath = "/usr/sbin/system_profiler"
-        process.arguments = ["SPPowerDataType", "-detailLevel", "basic"]
+        process.launchPath = "/usr/sbin/ioreg"
+        process.arguments = ["-r", "-c", "AppleSmartBattery", "-l"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.launch()
@@ -126,46 +126,27 @@ final class BatteryWatcher {
             return (0, 1, 1, 0, nil)
         }
 
-        // 解析各项
-        let current = parseInt(from: output, prefix: "Charge Remaining (mAh):")
-        let max = parseInt(from: output, prefix: "Full Charge Capacity (mAh):")
-        let cycles = parseInt(from: output, prefix: "Cycle Count:")
-        let design = max > 0 ? max : 1 // system_profiler 不一定有设计容量
+        let current = parseInt(from: output, key: "CurrentCapacity")
+        let max = parseInt(from: output, key: "MaxCapacity")
+        let design = parseInt(from: output, key: "DesignCapacity")
+        let cycles = parseInt(from: output, key: "CycleCount")
 
-        // 温度尝试从 ioreg 获取
-        let temp = fetchTemperature()
+        // 温度：ioreg 中 "Temperature" = 2850 (单位 0.01°C)
+        let rawTemp = parseInt(from: output, key: "Temperature")
+        let temp: Double? = rawTemp > 0 ? Double(rawTemp) / 100.0 : nil
 
         return (current, max, design, cycles, temp)
     }
 
-    private static func parseInt(from text: String, prefix: String) -> Int {
-        guard let range = text.range(of: prefix) else { return 0 }
-        let rest = String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        let numStr = rest.split(separator: "\n").first?.trimmingCharacters(in: .whitespaces) ?? "0"
-        return Int(numStr) ?? 0
-    }
-
-    private static func fetchTemperature() -> Double? {
-        let process = Process()
-        process.launchPath = "/usr/sbin/ioreg"
-        process.arguments = ["-r", "-c", "AppleSmartBattery", "-l"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.launch()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let output = String(data: data, encoding: .utf8) else { return nil }
-
-        // 匹配 "Temperature" = 2850 (值是 0.01°C)
-        if let range = output.range(of: #""Temperature" = \d+"#, options: .regularExpression) {
-            let line = String(output[range])
+    private static func parseInt(from text: String, key: String) -> Int {
+        // 匹配 "\"Key\" = 12345"
+        if let range = text.range(of: #""\#(key)" = \d+"#, options: .regularExpression) {
+            let line = String(text[range])
             if let numRange = line.range(of: #"\d+"#, options: .regularExpression) {
-                let raw = Int(line[numRange]) ?? 0
-                return Double(raw) / 100.0
+                return Int(line[numRange]) ?? 0
             }
         }
-        return nil
+        return 0
     }
 
     // MARK: - 轮询
