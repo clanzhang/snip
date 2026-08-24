@@ -19,6 +19,26 @@
             "target": "clipdoctor",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release clipdoctor"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:clipdoctor}",
+            "name": "Debug snip",
+            "target": "snip",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug snip"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:clipdoctor}",
+            "name": "Release snip",
+            "target": "snip",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release snip"
         }
     ]
 }

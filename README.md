@@ -21,10 +21,24 @@ swift build -c release
 cp .build/release/snip /usr/local/bin/
 ```
 
-### 使用 Homebrew (后续)
+### 使用 Homebrew
 
 ```bash
+brew tap clanzhang/tap
 brew install snip
+```
+
+升级：
+
+```bash
+brew upgrade snip
+```
+
+卸载：
+
+```bash
+brew uninstall snip
+brew untap clanzhang/tap
 ```
 
 ## 权限说明
