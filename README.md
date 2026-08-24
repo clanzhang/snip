@@ -15,7 +15,7 @@ macOS 剪贴板 & 快捷键诊断工具，用于排查 Command+C / Command+V 不
 ### 从源码编译
 
 ```bash
-git clone https://github.com/user/snip.git
+git clone https://github.com/clanzhang/snip.git
 cd snip
 swift build -c release
 cp .build/release/snip /usr/local/bin/
@@ -59,6 +59,7 @@ brew untap clanzhang/tap
 | `snip watch` | 监控剪贴板变化 |
 | `snip keys` | 监控全局键盘事件 |
 | `snip all` | 同时监控剪贴板 + 键盘（含复制失败检测） |
+| `snip battery` | 查看电池电量、健康度、温度 |
 | `snip doctor` | 系统诊断 |
 | `snip test --clipboard` | 测试剪贴板底层 |
 | `snip test --keys` | 测试全局快捷键 |
@@ -134,6 +135,7 @@ swift run snip report
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.1.8 | 2026-08-24 | 电池监控：电量、健康度、温度、循环次数 |
 | v0.1.7 | 2026-08-24 | Formula 安装时运行 swift test，bottle 发布脚本 |
 | v0.1.6 | 2026-08-24 | 18 个单元测试，GitHub Actions CI，bottle 支持，report 增强 |
 | v0.1.5 | 2026-08-24 | 添加版本历史到 README |
