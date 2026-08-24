@@ -8,6 +8,9 @@ struct WatchOptions {
     var json: Bool = false
     var verbose: Bool = false
     var log: Bool = false
+    var ignore: String?
+    var only: String?
+    var theme: String = "light"
 }
 
 struct KeysOptions {
@@ -17,6 +20,9 @@ struct KeysOptions {
     var json: Bool = false
     var verbose: Bool = false
     var log: Bool = false
+    var ignore: String?
+    var only: String?
+    var theme: String = "light"
 }
 
 struct AllOptions {
@@ -25,15 +31,24 @@ struct AllOptions {
     var json: Bool = false
     var verbose: Bool = false
     var log: Bool = false
+    var notify: Bool = false
+    var ignore: String?
+    var only: String?
+    var theme: String = "light"
 }
 
 struct TestOptions {
     var clipboard: Bool = false
     var keys: Bool = false
+    var latency: Bool = false
 }
 
 struct ReportOptions {
     var output: String = "~/Desktop/snip-report.txt"
+}
+
+struct ServerOptions {
+    var port: Int = 9876
 }
 
 // MARK: - 命令枚举
@@ -48,6 +63,7 @@ enum SnipCommand {
     case test(TestOptions)
     case stats
     case report(ReportOptions)
+    case server(ServerOptions)
     case unknown(String)
 
     init(args: [String]) {
@@ -78,6 +94,8 @@ enum SnipCommand {
             self = .stats
         case "report":
             self = .report(Self.parseReport(rest))
+        case "server":
+            self = .server(Self.parseServer(rest))
         default:
             self = .unknown(sub)
         }
@@ -100,6 +118,18 @@ enum SnipCommand {
                 if i + 1 < args.count { opts.contentPreview = Int(args[i + 1]) ?? 0 }
             case let a where a.hasPrefix("--content-preview="):
                 opts.contentPreview = Int(String(a.dropFirst("--content-preview=".count))) ?? 0
+            case "--ignore":
+                if i + 1 < args.count { opts.ignore = args[i + 1] }
+            case let a where a.hasPrefix("--ignore="):
+                opts.ignore = String(a.dropFirst("--ignore=".count))
+            case "--only":
+                if i + 1 < args.count { opts.only = args[i + 1] }
+            case let a where a.hasPrefix("--only="):
+                opts.only = String(a.dropFirst("--only=".count))
+            case "--theme":
+                if i + 1 < args.count { opts.theme = args[i + 1] }
+            case let a where a.hasPrefix("--theme="):
+                opts.theme = String(a.dropFirst("--theme=".count))
             default: break
             }
         }
@@ -119,6 +149,18 @@ enum SnipCommand {
                 if i + 1 < args.count { opts.customKeys = args[i + 1] }
             case let a where a.hasPrefix("--keys="):
                 opts.customKeys = String(a.dropFirst("--keys=".count))
+            case "--ignore":
+                if i + 1 < args.count { opts.ignore = args[i + 1] }
+            case let a where a.hasPrefix("--ignore="):
+                opts.ignore = String(a.dropFirst("--ignore=".count))
+            case "--only":
+                if i + 1 < args.count { opts.only = args[i + 1] }
+            case let a where a.hasPrefix("--only="):
+                opts.only = String(a.dropFirst("--only=".count))
+            case "--theme":
+                if i + 1 < args.count { opts.theme = args[i + 1] }
+            case let a where a.hasPrefix("--theme="):
+                opts.theme = String(a.dropFirst("--theme=".count))
             default: break
             }
         }
@@ -132,6 +174,7 @@ enum SnipCommand {
             case "--json": opts.json = true
             case "--verbose": opts.verbose = true
             case "--log": opts.log = true
+            case "--notify": opts.notify = true
             case "--interval":
                 if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 0.3 }
             case let a where a.hasPrefix("--interval="):
@@ -140,6 +183,18 @@ enum SnipCommand {
                 if i + 1 < args.count { opts.contentPreview = Int(args[i + 1]) ?? 0 }
             case let a where a.hasPrefix("--content-preview="):
                 opts.contentPreview = Int(String(a.dropFirst("--content-preview=".count))) ?? 0
+            case "--ignore":
+                if i + 1 < args.count { opts.ignore = args[i + 1] }
+            case let a where a.hasPrefix("--ignore="):
+                opts.ignore = String(a.dropFirst("--ignore=".count))
+            case "--only":
+                if i + 1 < args.count { opts.only = args[i + 1] }
+            case let a where a.hasPrefix("--only="):
+                opts.only = String(a.dropFirst("--only=".count))
+            case "--theme":
+                if i + 1 < args.count { opts.theme = args[i + 1] }
+            case let a where a.hasPrefix("--theme="):
+                opts.theme = String(a.dropFirst("--theme=".count))
             default: break
             }
         }
@@ -150,6 +205,7 @@ enum SnipCommand {
         var opts = TestOptions()
         if args.contains("--clipboard") { opts.clipboard = true }
         if args.contains("--keys") { opts.keys = true }
+        if args.contains("--latency") { opts.latency = true }
         return opts
     }
 
@@ -160,6 +216,18 @@ enum SnipCommand {
                 opts.output = args[i + 1]
             } else if a.hasPrefix("--output=") {
                 opts.output = String(a.dropFirst("--output=".count))
+            }
+        }
+        return opts
+    }
+
+    private static func parseServer(_ args: [String]) -> ServerOptions {
+        var opts = ServerOptions()
+        for (i, a) in args.enumerated() {
+            if a == "--port", i + 1 < args.count {
+                opts.port = Int(args[i + 1]) ?? 9876
+            } else if a.hasPrefix("--port=") {
+                opts.port = Int(String(a.dropFirst("--port=".count))) ?? 9876
             }
         }
         return opts

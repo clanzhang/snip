@@ -20,11 +20,15 @@ struct CLI {
           test       功能测试
           stats      查看统计
           report     生成诊断报告
+          server     启动 HTTP 诊断服务器
 
         通用参数:
           --json     JSON Lines 输出
           --verbose  详细技术字段输出
           --log      写入日志文件
+          --theme    颜色主题 (light/dark/none)
+          --ignore   忽略指定应用 (逗号分隔)
+          --only     只监控指定应用 (逗号分隔)
           --help     查看帮助
           --version  查看版本
 
@@ -35,22 +39,60 @@ struct CLI {
         print("snip v1.0.0")
     }
 
-    // MARK: - 辅助：创建格式化器
+    // MARK: - 辅助
 
-    private func makeFormatter(json: Bool, verbose: Bool) -> EventFormatter {
-        if json { return EventFormatter(mode: .json) }
-        if verbose { return EventFormatter(mode: .verbose) }
-        return EventFormatter(mode: .plain)
+    private func makeFormatter(json: Bool, verbose: Bool, theme: String) -> EventFormatter {
+        let mode: OutputMode = json ? .json : (verbose ? .verbose : .plain)
+        let t: ColorTheme
+        switch theme {
+        case "dark": t = .dark
+        case "none": t = .none
+        default: t = .light
+        }
+        return EventFormatter(mode: mode, theme: t)
+    }
+
+    private func makeFilter(ignore: String?, only: String?) -> AppFilter {
+        AppFilter(only: AppFilter.parse(only), ignore: AppFilter.parse(ignore))
+    }
+
+    private func checkPermission() -> Bool {
+        if !PermissionChecker.hasInputMonitoring() {
+            fputs("\(PermissionChecker.guide())\n", stderr)
+            exit(1)
+        }
+        return true
+    }
+
+    private func output(_ line: String, logger: Logger?) {
+        if let log = logger {
+            var l = log
+            l.log(line)
+        } else {
+            print(line)
+        }
+    }
+
+    private func runApp() {
+        signal(SIGINT) { _ in
+            print("\n已停止。")
+            exit(0)
+        }
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        app.run()
     }
 
     // MARK: - watch
 
     func runWatch(opts: WatchOptions) {
-        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose, theme: opts.theme)
         let logger = opts.log ? Logger() : nil
+        let filter = makeFilter(ignore: opts.ignore, only: opts.only)
         let watcher = ClipboardWatcher(interval: opts.interval, contentPreview: opts.contentPreview)
 
         watcher.onChange = { event in
+            guard filter.shouldOutput(appName: event.appName, bundleId: event.bundleId) else { return }
             let line = formatter.clipboardEvent(event)
             output(line, logger: logger)
         }
@@ -65,8 +107,9 @@ struct CLI {
     func runKeys(opts: KeysOptions) {
         guard checkPermission() else { return }
 
-        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose, theme: opts.theme)
         let logger = opts.log ? Logger() : nil
+        let filter = makeFilter(ignore: opts.ignore, only: opts.only)
 
         let combos: Set<HotKey>?
         if opts.allKeys {
@@ -84,6 +127,7 @@ struct CLI {
         let watcher = KeyboardWatcher(combos: combos, allKeys: opts.allKeys, unsafeChars: opts.unsafeChars)
 
         watcher.onEvent = { event in
+            guard filter.shouldOutput(appName: event.appName, bundleId: event.bundleId) else { return }
             let line = formatter.keyboardEvent(event)
             output(line, logger: logger)
         }
@@ -98,14 +142,17 @@ struct CLI {
     func runAll(opts: AllOptions) {
         guard checkPermission() else { return }
 
-        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose)
+        let formatter = makeFormatter(json: opts.json, verbose: opts.verbose, theme: opts.theme)
         let logger = opts.log ? Logger() : nil
+        let filter = makeFilter(ignore: opts.ignore, only: opts.only)
+        let notifier = opts.notify ? Notifier() : nil
         let stats = FailureStats()
         let failureDetector = CopyFailureDetector(timeoutMs: 800)
 
         // 剪贴板
         let cb = ClipboardWatcher(interval: opts.interval, contentPreview: opts.contentPreview)
         cb.onChange = { event in
+            guard filter.shouldOutput(appName: event.appName, bundleId: event.bundleId) else { return }
             let line = formatter.clipboardEvent(event)
             output(line, logger: logger)
             stats.recordClipboard(type: event.types.first ?? "unknown")
@@ -114,24 +161,23 @@ struct CLI {
         // 键盘
         let kb = KeyboardWatcher(combos: KeyboardWatcher.defaultCombos, allKeys: false, unsafeChars: false)
         kb.onEvent = { event in
+            guard filter.shouldOutput(appName: event.appName, bundleId: event.bundleId) else { return }
             let line = formatter.keyboardEvent(event)
             output(line, logger: logger)
 
-            // 复制失败检测
             if event.combo == "cmd+c" && event.type == .keyDown {
                 let app = AppInfo(name: event.appName, bundleId: event.bundleId, pid: event.pid)
                 failureDetector.onCopyPressed(app: app)
             }
         }
 
-        // 失败回调
         failureDetector.onFailure = { failure in
             let line = formatter.copyFailureEvent(failure)
             output(line, logger: logger)
             stats.recordFailure(app: failure.app)
+            notifier?.copyFailure(app: failure.app)
         }
 
-        // 成功回调
         failureDetector.onSuccess = { success in
             let line = formatter.copySuccessEvent(success)
             output(line, logger: logger)
@@ -157,10 +203,13 @@ struct CLI {
             testClipboard()
         } else if opts.keys {
             testKeys()
+        } else if opts.latency {
+            testLatency()
         } else {
-            print("请指定测试项: --clipboard 或 --keys")
-            print("用法: snip test --clipboard")
-            print("      snip test --keys")
+            print("请指定测试项:")
+            print("  snip test --clipboard   剪贴板读写测试")
+            print("  snip test --keys        快捷键检测测试")
+            print("  snip test --latency     pbcopy/pbpaste 延迟测试")
         }
     }
 
@@ -221,6 +270,53 @@ struct CLI {
         exit(0)
     }
 
+    /// pbcopy/pbpaste 延迟测试
+    private func testLatency() {
+        print("测试 pbcopy/pbpaste 延迟...\n")
+        let iterations = 10
+        let testStr = "latency-test-\(Int(Date().timeIntervalSince1970))"
+        var times: [Double] = []
+
+        for _ in 0..<iterations {
+            let start = CFAbsoluteTimeGetCurrent()
+
+            let process = Process()
+            process.launchPath = "/bin/bash"
+            process.arguments = ["-c", "echo -n '\(testStr)' | pbcopy && pbpaste"]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.launch()
+            process.waitUntilExit()
+
+            let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
+            times.append(elapsed)
+        }
+
+        let avg = times.reduce(0, +) / Double(iterations)
+        let min = times.min() ?? 0
+        let max = times.max() ?? 0
+
+        print("测试次数: \(iterations)")
+        print("平均延迟: \(String(format: "%.2f", avg)) ms")
+        print("最小延迟: \(String(format: "%.2f", min)) ms")
+        print("最大延迟: \(String(format: "%.2f", max)) ms")
+
+        if avg < 10 {
+            print("结论：pbcopy/pbpaste 延迟正常")
+        } else if avg < 50 {
+            print("结论：pbcopy/pbpaste 延迟偏高")
+        } else {
+            print("结论：pbcopy/pbpaste 延迟异常，可能是系统负载或第三方工具影响")
+        }
+    }
+
+    // MARK: - server
+
+    func runServer(opts: ServerOptions) {
+        let srv = Server(port: opts.port)
+        srv.run()
+    }
+
     // MARK: - stats
 
     func runStats() {
@@ -252,35 +348,6 @@ struct CLI {
         let report = ReportGenerator()
         let path = report.generate(outputPath: opts.output)
         print("报告已生成: \(path)")
-    }
-
-    // MARK: - 辅助
-
-    private func checkPermission() -> Bool {
-        if !PermissionChecker.hasInputMonitoring() {
-            fputs("\(PermissionChecker.guide())\n", stderr)
-            exit(1)
-        }
-        return true
-    }
-
-    private func output(_ line: String, logger: Logger?) {
-        if let log = logger {
-            var l = log
-            l.log(line)
-        } else {
-            print(line)
-        }
-    }
-
-    private func runApp() {
-        signal(SIGINT) { _ in
-            print("\n已停止。")
-            exit(0)
-        }
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
-        app.run()
     }
 }
 

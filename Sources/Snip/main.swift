@@ -25,6 +25,8 @@ case .stats:
     cli.runStats()
 case .report(let opts):
     cli.runReport(opts: opts)
+case .server(let opts):
+    cli.runServer(opts: opts)
 case .unknown(let cmd):
     fputs("未知命令: \(cmd)\n\n", stderr)
     cli.printHelp()

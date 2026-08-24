@@ -7,16 +7,25 @@ enum OutputMode {
     case json       // JSON Lines
 }
 
+/// 颜色主题
+enum ColorTheme {
+    case light   // 默认终端色
+    case dark    // 高亮色
+    case none    // 纯文本，无 ANSI
+}
+
 /// 事件格式化：默认 / verbose / JSON 三层输出
 struct EventFormatter {
     let mode: OutputMode
+    let theme: ColorTheme
 
     private let timeShort: DateFormatter
     private let timeFull: DateFormatter
     private let iso: ISO8601DateFormatter
 
-    init(mode: OutputMode = .plain) {
+    init(mode: OutputMode = .plain, theme: ColorTheme = .light) {
         self.mode = mode
+        self.theme = theme
 
         timeShort = DateFormatter()
         timeShort.dateFormat = "HH:mm:ss"
@@ -228,7 +237,7 @@ struct EventFormatter {
     }
 
     private func colorize(_ text: String, _ color: ANSI) -> String {
-        guard isatty(STDOUT_FILENO) != 0 else { return text }
+        guard theme != .none, isatty(STDOUT_FILENO) != 0 else { return text }
         return "\(color.rawValue)\(text)\(ANSI.reset.rawValue)"
     }
 }

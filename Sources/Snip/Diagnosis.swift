@@ -47,11 +47,20 @@ struct Diagnosis {
         let recentFails = countRecentFailures()
         print("Recent copy failures: \(recentFails)")
 
+        // 11. 快捷键冲突检测
+        let conflicts = detectHotKeyConflicts()
+        if conflicts.isEmpty {
+            print("Hotkey conflicts: None detected")
+        } else {
+            print("Hotkey conflicts: \(conflicts.joined(separator: ", ")) ⚠️")
+        }
+
         // 建议
         print("\n建议：")
         var suggestions: [String] = []
         if !im { suggestions.append("请授予终端输入监控权限。") }
         if !tools.isEmpty { suggestions.append("检测到剪贴板或快捷键增强工具，建议临时退出后测试。") }
+        if !conflicts.isEmpty { suggestions.append("检测到多个工具可能拦截同一快捷键，建议逐一排查。") }
         if safe { suggestions.append("系统处于安全模式，部分功能可能受限。") }
         if !pbOK { suggestions.append("pbcopy/pbpaste 测试失败，剪贴板底层可能异常。") }
         if suggestions.isEmpty {
@@ -115,6 +124,29 @@ struct Diagnosis {
             }
         }
         return found
+    }
+
+    private func detectHotKeyConflicts() -> [String] {
+        // 检测同时运行的可能拦截快捷键的工具
+        let tools = detectRunningTools()
+        let hotkeyTools = tools.filter { t in
+            // 已知会拦截全局快捷键的工具
+            let bids = [
+                "com.raycast.macos", "com.alfredapp.alfred",
+                "com.hegenberg.BetterTouchTool", "org.pqrs.Karabiner-Elements",
+            ]
+            // 通过 process name 匹配
+            for bid in bids {
+                for app in NSWorkspace.shared.runningApplications {
+                    if app.bundleIdentifier == bid { return true }
+                }
+            }
+            return false
+        }
+        if hotkeyTools.count >= 2 {
+            return ["多个快捷键工具同时运行"]
+        }
+        return []
     }
 
     private func countRecentFailures() -> Int {
