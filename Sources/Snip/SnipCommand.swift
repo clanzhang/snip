@@ -51,6 +51,12 @@ struct ServerOptions {
     var port: Int = 9876
 }
 
+struct BatteryOptions {
+    var watch: Bool = false
+    var interval: TimeInterval = 2.0
+    var json: Bool = false
+}
+
 // MARK: - 命令枚举
 
 enum SnipCommand {
@@ -64,6 +70,7 @@ enum SnipCommand {
     case stats
     case report(ReportOptions)
     case server(ServerOptions)
+    case battery(BatteryOptions)
     case unknown(String)
 
     init(args: [String]) {
@@ -96,6 +103,8 @@ enum SnipCommand {
             self = .report(Self.parseReport(rest))
         case "server":
             self = .server(Self.parseServer(rest))
+        case "battery":
+            self = .battery(Self.parseBattery(rest))
         default:
             self = .unknown(sub)
         }
@@ -228,6 +237,22 @@ enum SnipCommand {
                 opts.port = Int(args[i + 1]) ?? 9876
             } else if a.hasPrefix("--port=") {
                 opts.port = Int(String(a.dropFirst("--port=".count))) ?? 9876
+            }
+        }
+        return opts
+    }
+
+    private static func parseBattery(_ args: [String]) -> BatteryOptions {
+        var opts = BatteryOptions()
+        for (i, a) in args.enumerated() {
+            switch a {
+            case "--watch": opts.watch = true
+            case "--json": opts.json = true
+            case "--interval":
+                if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 2.0 }
+            case let a where a.hasPrefix("--interval="):
+                opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 2.0
+            default: break
             }
         }
         return opts

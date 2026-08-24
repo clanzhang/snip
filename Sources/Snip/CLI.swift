@@ -16,6 +16,7 @@ struct CLI {
           watch      监控剪贴板变化
           keys       监控全局键盘事件
           all        同时监控剪贴板 + 键盘（含复制失败检测）
+          battery    查看电池状态
           doctor     系统诊断
           test       功能测试
           stats      查看统计
@@ -348,6 +349,54 @@ struct CLI {
         let report = ReportGenerator()
         let path = report.generate(outputPath: opts.output)
         print("报告已生成: \(path)")
+    }
+
+    // MARK: - battery
+
+    func runBattery(opts: BatteryOptions) {
+        if opts.watch {
+            let watcher = BatteryWatcher(interval: opts.interval)
+            watcher.onUpdate = { info in
+                if opts.json {
+                    self.printBatteryJSON(info)
+                } else {
+                    print(info.summary)
+                }
+            }
+            print("电池监控已启动（Ctrl+C 退出）")
+            watcher.start()
+            runApp()
+        } else {
+            guard let info = BatteryWatcher.fetch() else {
+                print("❌ 无法获取电池信息（仅支持 MacBook）")
+                return
+            }
+            if opts.json {
+                printBatteryJSON(info)
+            } else {
+                print(info.summary)
+            }
+        }
+    }
+
+    private func printBatteryJSON(_ info: BatteryInfo) {
+        let dict: [String: Any] = [
+            "percentage": info.percentage,
+            "status": info.statusText,
+            "charging": info.isCharging,
+            "plugged_in": info.isPluggedIn,
+            "current_capacity": info.currentCapacity,
+            "max_capacity": info.maxCapacity,
+            "design_capacity": info.designCapacity,
+            "cycle_count": info.cycleCount,
+            "health_percent": info.healthPercent,
+            "time_remaining": info.timeRemaining ?? NSNull(),
+            "temperature": info.temperature ?? NSNull()
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict, options: .sortedKeys),
+           let json = String(data: data, encoding: .utf8) {
+            print(json)
+        }
     }
 }
 
