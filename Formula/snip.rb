@@ -10,15 +10,20 @@ class Snip < Formula
   depends_on :macos
   depends_on xcode: ["14.0", :build]
 
-  # 预编译二进制 (bottle) — 后续发布时替换 sha256
-  # 生成方式: brew bottle --root-url=https://github.com/clanzhang/homebrew-tap/releases/download/v0.1.0 snip
+  # 预编译二进制 (bottle)
+  # 发布流程:
+  #   1. brew install --build-bottle snip
+  #   2. brew bottle snip
+  #   3. 上传 snip--*.tar.gz 到 GitHub Releases
+  #   4. 替换下方 sha256 为实际值
   bottle do
-    root_url "https://github.com/clanzhang/homebrew-tap/releases/download/v0.1.0"
+    root_url "https://github.com/clanzhang/homebrew-tap/releases/download/v0.1.6"
     sha256 cellar: :any_skip_relocation, arm64_sonoma: "REPLACE_WITH_BOTTLE_SHA256"
   end
 
   def install
     system "swift", "build", "-c", "release", "--disable-sandbox"
+    system "swift", "test", "--disable-sandbox"
     bin.install ".build/release/snip"
   end
 
