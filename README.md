@@ -134,9 +134,9 @@ swift run snip report
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| v0.1.7 | 2026-08-23 | Formula 安装时运行 swift test，bottle 发布脚本 |
-| v0.1.6 | 2026-08-23 | 18 个单元测试，GitHub Actions CI，bottle 支持，report 增强 |
-| v0.1.5 | 2026-08-23 | 添加版本历史到 README |
+| v0.1.7 | 2026-08-24 | Formula 安装时运行 swift test，bottle 发布脚本 |
+| v0.1.6 | 2026-08-24 | 18 个单元测试，GitHub Actions CI，bottle 支持，report 增强 |
+| v0.1.5 | 2026-08-24 | 添加版本历史到 README |
 | v0.1.4 | 2026-08-23 | 应用过滤、macOS 通知、颜色主题、延迟测试、远程诊断服务器、快捷键冲突检测 |
 | v0.1.3 | 2026-08-23 | 三层输出格式化（plain/verbose/json）+ CopyFailureDetector |
 | v0.1.2 | 2026-08-23 | 移除帮助示例 |
