@@ -32,11 +32,15 @@ struct BatteryInfo {
 final class BatteryWatcher {
     private var timer: Timer?
     private let interval: TimeInterval
+    private let warnThreshold: Int?
+    private var lastWarnPercent: Int = 100  // 避免重复提醒
 
     var onUpdate: ((BatteryInfo) -> Void)?
+    var onLowBattery: ((BatteryInfo) -> Void)?
 
-    init(interval: TimeInterval = 2.0) {
+    init(interval: TimeInterval = 2.0, warnThreshold: Int? = nil) {
         self.interval = interval
+        self.warnThreshold = warnThreshold
     }
 
     /// 获取单次电池信息（通过 pmset 命令）
@@ -155,10 +159,28 @@ final class BatteryWatcher {
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self, let info = BatteryWatcher.fetch() else { return }
             self.onUpdate?(info)
+            self.checkLowBattery(info)
         }
         // 立即触发一次
         if let info = BatteryWatcher.fetch() {
             onUpdate?(info)
+            checkLowBattery(info)
+        }
+    }
+
+    private func checkLowBattery(_ info: BatteryInfo) {
+        guard let threshold = warnThreshold else { return }
+        // 只在放电且低于阈值时提醒，电量回升 5% 后重置
+        if info.isCharging || info.isPluggedIn {
+            lastWarnPercent = 100
+            return
+        }
+        if info.percentage <= threshold && info.percentage < lastWarnPercent {
+            onLowBattery?(info)
+            lastWarnPercent = info.percentage
+        }
+        if info.percentage > threshold + 5 {
+            lastWarnPercent = info.percentage
         }
     }
 

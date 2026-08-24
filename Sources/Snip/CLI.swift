@@ -355,7 +355,7 @@ struct CLI {
 
     func runBattery(opts: BatteryOptions) {
         if opts.watch {
-            let watcher = BatteryWatcher(interval: opts.interval)
+            let watcher = BatteryWatcher(interval: opts.interval, warnThreshold: opts.warnThreshold)
             watcher.onUpdate = { info in
                 if opts.json {
                     self.printBatteryJSON(info)
@@ -363,7 +363,16 @@ struct CLI {
                     print(info.summary)
                 }
             }
-            print("电池监控已启动（Ctrl+C 退出）")
+            watcher.onLowBattery = { info in
+                let msg = "⚠️ 电量仅剩 \(info.percentage)%，该充电啦！"
+                print(msg)
+                Notifier().notify(title: "电池电量低", subtitle: msg, body: "剩余 \(info.percentage)%，请连接电源")
+            }
+            if opts.warnThreshold != nil {
+                print("电池监控已启动（低电量提醒 \(opts.warnThreshold!)%）（Ctrl+C 退出）")
+            } else {
+                print("电池监控已启动（Ctrl+C 退出）")
+            }
             watcher.start()
             runApp()
         } else {

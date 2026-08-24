@@ -55,6 +55,7 @@ struct BatteryOptions {
     var watch: Bool = false
     var interval: TimeInterval = 2.0
     var json: Bool = false
+    var warnThreshold: Int? = nil   // 电量低于此百分比时发送提醒，默认 15
 }
 
 // MARK: - 命令枚举
@@ -252,6 +253,14 @@ enum SnipCommand {
                 if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 2.0 }
             case let a where a.hasPrefix("--interval="):
                 opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 2.0
+            case "--warn":
+                opts.warnThreshold = 15  // 默认 15%
+                if i + 1 < args.count, let n = Int(args[i + 1]), n > 0, n <= 100 {
+                    opts.warnThreshold = n
+                }
+            case let a where a.hasPrefix("--warn="):
+                let val = Int(String(a.dropFirst("--warn=".count))) ?? 15
+                opts.warnThreshold = max(1, min(100, val))
             default: break
             }
         }
