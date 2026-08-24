@@ -3,8 +3,8 @@
 class Snip < Formula
   desc "macOS clipboard and keyboard diagnostic tool"
   homepage "https://github.com/clanzhang/snip"
-  url "https://github.com/clanzhang/snip/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "2bd858b0d3979891f50d2a9c106a190b21af8aa1a1cf2405a498e77c86d751ac"
+  url "https://github.com/clanzhang/snip/archive/refs/tags/v0.1.9.tar.gz"
+  sha256 "b36a54af9534658ce9df78afab5c8b00efe2476502e5cb8a43821bd7cee357b0"
   license "MIT"
 
   depends_on :macos
@@ -17,7 +17,7 @@ class Snip < Formula
   #   3. 上传 snip--*.tar.gz 到 GitHub Releases
   #   4. 替换下方 sha256 为实际值
   bottle do
-    root_url "https://github.com/clanzhang/homebrew-tap/releases/download/v0.1.6"
+    root_url "https://github.com/clanzhang/homebrew-tap/releases/download/v0.1.9"
     sha256 cellar: :any_skip_relocation, arm64_sonoma: "REPLACE_WITH_BOTTLE_SHA256"
   end
 
