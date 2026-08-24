@@ -130,6 +130,16 @@ swift run snip doctor
 swift run snip report
 ```
 
+## 版本历史
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v0.1.4 | 2026-08-23 | 应用过滤、macOS 通知、颜色主题、延迟测试、远程诊断服务器、快捷键冲突检测 |
+| v0.1.3 | 2026-08-23 | 三层输出格式化（plain/verbose/json）+ CopyFailureDetector |
+| v0.1.2 | 2026-08-23 | 移除帮助示例 |
+| v0.1.1 | 2026-08-23 | 修复 Package.swift 测试目标 |
+| v0.1.0 | 2026-08-23 | 初始版本：watch / keys / all / doctor / test / stats / report |
+
 ## License
 
 MIT
