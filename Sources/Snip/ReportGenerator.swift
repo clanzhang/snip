@@ -10,7 +10,7 @@ struct ReportGenerator {
         var report = ""
         report += "Snip 诊断报告\n"
         report += "============\n\n"
-        report += "版本: 1.0.0\n"
+        report += "版本: v0.1.5\n"
         report += "生成时间: \(ISO8601DateFormatter().string(from: Date()))\n\n"
 
         // 系统信息
@@ -37,6 +37,11 @@ struct ReportGenerator {
         } else {
             for t in tools { report += "- \(t)\n" }
         }
+
+        // 系统硬件摘要
+        report += "\n--- 硬件摘要 ---\n"
+        report += systemProfilerSummary()
+        report += "\n"
 
         // 最近日志摘要
         report += "\n--- 最近日志摘要 ---\n"
@@ -100,5 +105,20 @@ struct ReportGenerator {
             }
         }
         return found
+    }
+
+    /// 运行 system_profiler 获取硬件摘要
+    private func systemProfilerSummary() -> String {
+        let process = Process()
+        process.launchPath = "/usr/sbin/system_profiler"
+        process.arguments = ["SPHardwareDataType", "SPSoftwareDataType", "-detailLevel", "mini"]
+        let pipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = errPipe
+        process.launch()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8) ?? "获取硬件信息失败"
     }
 }
