@@ -149,4 +149,4 @@ swift run snip report
 
 ## License
 
-MIT
+[MIT](https://github.com/clanzhang/snip/blob/main/LICENSE)
