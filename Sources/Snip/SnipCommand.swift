@@ -58,6 +58,12 @@ struct BatteryOptions {
     var warnThreshold: Int? = nil   // 电量低于此百分比时发送提醒，默认 15
 }
 
+struct NetworkOptions {
+    var watch: Bool = false
+    var interval: TimeInterval = 5.0
+    var json: Bool = false
+}
+
 // MARK: - 命令枚举
 
 enum SnipCommand {
@@ -72,6 +78,7 @@ enum SnipCommand {
     case report(ReportOptions)
     case server(ServerOptions)
     case battery(BatteryOptions)
+    case network(NetworkOptions)
     case unknown(String)
 
     init(args: [String]) {
@@ -106,6 +113,8 @@ enum SnipCommand {
             self = .server(Self.parseServer(rest))
         case "battery":
             self = .battery(Self.parseBattery(rest))
+        case "network":
+            self = .network(Self.parseNetwork(rest))
         default:
             self = .unknown(sub)
         }
@@ -261,6 +270,22 @@ enum SnipCommand {
             case let a where a.hasPrefix("--warn="):
                 let val = Int(String(a.dropFirst("--warn=".count))) ?? 15
                 opts.warnThreshold = max(1, min(100, val))
+            default: break
+            }
+        }
+        return opts
+    }
+
+    private static func parseNetwork(_ args: [String]) -> NetworkOptions {
+        var opts = NetworkOptions()
+        for (i, a) in args.enumerated() {
+            switch a {
+            case "--watch": opts.watch = true
+            case "--json": opts.json = true
+            case "--interval":
+                if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 5.0 }
+            case let a where a.hasPrefix("--interval="):
+                opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 5.0
             default: break
             }
         }

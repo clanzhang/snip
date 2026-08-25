@@ -51,6 +51,7 @@ brew untap clanzhang/tap
 | `snip keys` | 输入监控 | 系统设置 > 隐私与安全性 > 输入监控 |
 | `snip all` | 输入监控 | 同上 |
 | `snip test --keys` | 输入监控 | 同上 |
+| `snip network` | 无 | — |
 
 ## 命令列表
 
@@ -60,6 +61,7 @@ brew untap clanzhang/tap
 | `snip keys` | 监控全局键盘事件 |
 | `snip all` | 同时监控剪贴板 + 键盘（含复制失败检测） |
 | `snip battery` | 查看电池电量、健康度、温度 |
+| `snip network` | 查看网络状态（Wi-Fi、DNS、连通性） |
 | `snip doctor` | 系统诊断 |
 | `snip test --clipboard` | 测试剪贴板底层 |
 | `snip test --keys` | 测试全局快捷键 |
@@ -114,6 +116,19 @@ snip report
 
 报告默认保存到 `~/Desktop/snip-report.txt`，可以安全提交给 Apple Feedback Assistant。
 
+### 6. 网络诊断
+
+```bash
+snip network
+```
+
+检查 Wi-Fi、DNS、公网 IP 和互联网连通性。Universal Clipboard（通用剪贴板）依赖网络，如果网络不通，跨设备剪贴板同步会失效。
+
+```bash
+snip network --watch    # 持续监控网络状态
+snip network --json     # JSON 输出
+```
+
 ## 提交 Apple Feedback
 
 1. 运行 `snip report` 生成诊断报告
@@ -135,6 +150,7 @@ swift run snip report
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.1.11 | 2026-08-25 | 网络诊断：Wi-Fi、DNS、公网 IP、连通性检测 |
 | v0.1.10 | 2026-08-24 | 低电量提醒：`--warn` 发送 macOS 通知 |
 | v0.1.9 | 2026-08-24 | 修复电池健康度 0% 和充放电状态误判 |
 | v0.1.8 | 2026-08-24 | 电池监控：电量、健康度、温度、循环次数 |

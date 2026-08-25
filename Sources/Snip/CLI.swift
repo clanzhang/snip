@@ -17,6 +17,7 @@ struct CLI {
           keys       监控全局键盘事件
           all        同时监控剪贴板 + 键盘（含复制失败检测）
           battery    查看电池状态
+          network    查看网络状态
           doctor     系统诊断
           test       功能测试
           stats      查看统计
@@ -37,7 +38,7 @@ struct CLI {
     }
 
     func printVersion() {
-        print("snip v0.1.8")
+        print("snip v0.1.11")
     }
 
     // MARK: - 辅助
@@ -401,6 +402,57 @@ struct CLI {
             "health_percent": info.healthPercent,
             "time_remaining": info.timeRemaining ?? NSNull(),
             "temperature": info.temperature ?? NSNull()
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict, options: .sortedKeys),
+           let json = String(data: data, encoding: .utf8) {
+            print(json)
+        }
+    }
+
+    // MARK: - network
+
+    func runNetwork(opts: NetworkOptions) {
+        if opts.watch {
+            let watcher = NetworkWatcher(interval: opts.interval)
+            watcher.onUpdate = { info in
+                if opts.json {
+                    self.printNetworkJSON(info)
+                } else {
+                    print(info.summary)
+                    print("---")
+                }
+            }
+            print("网络监控已启动（Ctrl+C 退出）")
+            watcher.start()
+            runApp()
+        } else {
+            let info = NetworkWatcher.fetch()
+            if opts.json {
+                printNetworkJSON(info)
+            } else {
+                print(info.summary)
+            }
+        }
+    }
+
+    private func printNetworkJSON(_ info: NetworkInfo) {
+        let dict: [String: Any] = [
+            "wifi_ssid": info.wifiSSID ?? NSNull(),
+            "wifi_rssi": info.wifiRSSI ?? NSNull(),
+            "wifi_channel": info.wifiChannel ?? NSNull(),
+            "signal_strength": info.signalStrength,
+            "interfaces": info.interfaces.map { iface in
+                return [
+                    "name": iface.name,
+                    "display_name": iface.displayName,
+                    "address": iface.address ?? NSNull(),
+                    "netmask": iface.netmask ?? NSNull(),
+                    "active": iface.isActive
+                ] as [String: Any]
+            },
+            "dns_servers": info.dnsServers,
+            "public_ip": info.publicIP ?? NSNull(),
+            "connectivity": info.connectivity
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: .sortedKeys),
            let json = String(data: data, encoding: .utf8) {
