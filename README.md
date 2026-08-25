@@ -52,6 +52,7 @@ brew untap clanzhang/tap
 | `snip all` | 输入监控 | 同上 |
 | `snip test --keys` | 输入监控 | 同上 |
 | `snip network` | 无 | — |
+| `snip cpu` | 无 | — |
 
 ## 命令列表
 
@@ -62,6 +63,7 @@ brew untap clanzhang/tap
 | `snip all` | 同时监控剪贴板 + 键盘（含复制失败检测） |
 | `snip battery` | 查看电池电量、健康度、温度 |
 | `snip network` | 查看网络状态（Wi-Fi、DNS、连通性） |
+| `snip cpu` | 查看 CPU 状态（型号、负载、使用率、Top 进程） |
 | `snip doctor` | 系统诊断 |
 | `snip test --clipboard` | 测试剪贴板底层 |
 | `snip test --keys` | 测试全局快捷键 |

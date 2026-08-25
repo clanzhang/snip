@@ -18,6 +18,7 @@ struct CLI {
           all        同时监控剪贴板 + 键盘（含复制失败检测）
           battery    查看电池状态
           network    查看网络状态
+          cpu        查看 CPU 状态
           doctor     系统诊断
           test       功能测试
           stats      查看统计
@@ -38,7 +39,7 @@ struct CLI {
     }
 
     func printVersion() {
-        print("snip v0.1.14")
+        print("snip v0.1.16")
     }
 
     // MARK: - 辅助
@@ -453,6 +454,56 @@ struct CLI {
             "dns_servers": info.dnsServers,
             "public_ip": info.publicIP ?? NSNull(),
             "connectivity": info.connectivity
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict, options: .sortedKeys),
+           let json = String(data: data, encoding: .utf8) {
+            print(json)
+        }
+    }
+
+    // MARK: - cpu
+
+    func runCPU(opts: CPUOptions) {
+        if opts.watch {
+            let watcher = CPUWatcher(interval: opts.interval)
+            watcher.onUpdate = { info in
+                if opts.json {
+                    self.printCPUJSON(info)
+                } else {
+                    print(info.summary)
+                    print("---")
+                }
+            }
+            print("CPU 监控已启动（Ctrl+C 退出）")
+            watcher.start()
+            runApp()
+        } else {
+            guard let info = CPUWatcher.fetch() else {
+                print("❌ 无法获取 CPU 信息")
+                return
+            }
+            if opts.json {
+                printCPUJSON(info)
+            } else {
+                print(info.summary)
+            }
+        }
+    }
+
+    private func printCPUJSON(_ info: CPUInfo) {
+        let dict: [String: Any] = [
+            "model": info.modelName,
+            "physical_cores": info.physicalCores,
+            "logical_cores": info.logicalCores,
+            "cpu_user_pct": info.cpuUsage.user,
+            "cpu_system_pct": info.cpuUsage.system,
+            "cpu_idle_pct": info.cpuUsage.idle,
+            "cpu_nice_pct": info.cpuUsage.nice,
+            "process_count": info.processCount,
+            "load_average_1m": info.loadAverage1,
+            "load_average_5m": info.loadAverage5,
+            "load_average_15m": info.loadAverage15,
+            "top_processes": info.topProcesses.map { ["cpu_pct": $0.cpu, "name": $0.name] }
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: .sortedKeys),
            let json = String(data: data, encoding: .utf8) {

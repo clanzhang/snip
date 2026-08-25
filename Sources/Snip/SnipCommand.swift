@@ -64,6 +64,12 @@ struct NetworkOptions {
     var json: Bool = false
 }
 
+struct CPUOptions {
+    var watch: Bool = false
+    var interval: TimeInterval = 3.0
+    var json: Bool = false
+}
+
 // MARK: - 命令枚举
 
 enum SnipCommand {
@@ -79,6 +85,7 @@ enum SnipCommand {
     case server(ServerOptions)
     case battery(BatteryOptions)
     case network(NetworkOptions)
+    case cpu(CPUOptions)
     case unknown(String)
 
     init(args: [String]) {
@@ -115,6 +122,8 @@ enum SnipCommand {
             self = .battery(Self.parseBattery(rest))
         case "network":
             self = .network(Self.parseNetwork(rest))
+        case "cpu":
+            self = .cpu(Self.parseCPU(rest))
         default:
             self = .unknown(sub)
         }
@@ -286,6 +295,22 @@ enum SnipCommand {
                 if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 5.0 }
             case let a where a.hasPrefix("--interval="):
                 opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 5.0
+            default: break
+            }
+        }
+        return opts
+    }
+
+    private static func parseCPU(_ args: [String]) -> CPUOptions {
+        var opts = CPUOptions()
+        for (i, a) in args.enumerated() {
+            switch a {
+            case "--watch": opts.watch = true
+            case "--json": opts.json = true
+            case "--interval":
+                if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 3.0 }
+            case let a where a.hasPrefix("--interval="):
+                opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 3.0
             default: break
             }
         }
