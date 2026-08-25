@@ -17,7 +17,21 @@ description: "snip 项目专用：每次代码改动完成后自动 commit → p
 
 ## 流程
 
-### 第 1 步：提交到本地仓库
+### 第 1 步：更新源码版本号
+
+bump 版本号后，必须先更新源码中的硬编码版本字符串，否则编译出来的二进制版本号永远是旧的。
+
+```bash
+cd /Users/wzt/Desktop/clan/i/clipdoctor
+
+# 更新 CLI.swift 版本号
+sed -i '' 's/print("snip v0\.1\.[0-9]*")/print("snip v0.1.<N>")/' Sources/Snip/CLI.swift
+
+# 更新 ReportGenerator.swift 版本号
+sed -i '' 's/report += "版本: v0\.1\.[0-9]*\\n"/report += "版本: v0.1.<N>\\n"/' Sources/Snip/ReportGenerator.swift
+```
+
+### 第 2 步：提交到本地仓库
 
 ```bash
 cd /Users/wzt/Desktop/clan/i/clipdoctor
@@ -27,13 +41,13 @@ git commit -m "<简洁描述改动>"
 
 如果工作区干净，跳过后续步骤，直接告知用户。
 
-### 第 2 步：推送到 GitHub
+### 第 3 步：推送到 GitHub
 
 ```bash
 git push origin main
 ```
 
-### 第 3 步：自动 bump 版本号
+### 第 4 步：自动 bump 版本号
 
 当前版本号规则：`v0.1.<patch>`，每次发版 patch +1。
 
@@ -44,14 +58,14 @@ git tag --sort=-v:refname | head -1
 
 比如当前是 `v0.1.3`，新版本就是 `v0.1.4`。
 
-### 第 4 步：打 tag 并推送
+### 第 5 步：打 tag 并推送
 
 ```bash
 git tag -a v0.1.<N> -m "v0.1.<N>: <改动描述>"
 git push origin v0.1.<N>
 ```
 
-### 第 5 步：更新 Homebrew Formula
+### 第 6 步：更新 Homebrew Formula
 
 ```bash
 # 更新 url 版本号
@@ -70,7 +84,7 @@ git commit -m "snip: bump to v0.1.<N>"
 git push
 ```
 
-### 第 6 步：升级本地安装
+### 第 7 步：升级本地安装
 
 ```bash
 brew upgrade snip
