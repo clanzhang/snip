@@ -156,7 +156,7 @@ final class NetworkWatcher {
     // MARK: - Wi-Fi 信息
 
     private static func fetchWiFiInfo() -> (ssid: String?, rssi: Int?, channel: Int?) {
-        // 优先使用 airport 命令（提供更详细的信息）
+        // 1. 优先使用 airport 命令（提供最详细的信息）
         let airportPath = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
         if FileManager.default.fileExists(atPath: airportPath) {
             let process = Process()
@@ -168,22 +168,33 @@ final class NetworkWatcher {
             process.launch()
             process.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                let ssid = parseLine(output, key: "SSID")
-                let rssi = parseInt(output, key: "agrCtlRSSI")
-                let channel = parseInt(output, key: "channel")
-                return (ssid, rssi, channel)
+            if process.terminationStatus == 0 {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8) {
+                    let ssid = parseLine(output, key: "SSID")
+                    let rssi = parseInt(output, key: "agrCtlRSSI")
+                    let channel = parseInt(output, key: "channel")
+                    if ssid != nil || rssi != nil {
+                        return (ssid, rssi, channel)
+                    }
+                }
             }
         }
 
-        // 回退：networksetup
+        // 2. 回退：遍历所有接口找 Wi-Fi
         return fetchWiFiInfoViaNetworkSetup()
     }
 
     private static func fetchWiFiInfoViaNetworkSetup() -> (ssid: String?, rssi: Int?, channel: Int?) {
+        // 先找 Wi-Fi 接口名（不一定是 en0）
+        let wifiInterface = findWiFiInterface()
+
+        guard let iface = wifiInterface else {
+            return (nil, nil, nil)
+        }
+
         // 获取 SSID
-        let ssid = fetchSSIDViaNetworkSetup()
+        let ssid = fetchSSIDViaNetworkSetup(interface: iface)
 
         // 获取 RSSI 和频道
         let detail = fetchWiFiDetail()
@@ -191,15 +202,63 @@ final class NetworkWatcher {
         return (ssid, detail.rssi, detail.channel)
     }
 
-    private static func fetchSSIDViaNetworkSetup() -> String? {
+    /// 通过 networksetup -listallhardwareports 找到 Wi-Fi 接口名
+    private static func findWiFiInterface() -> String? {
         let process = Process()
         process.launchPath = "/usr/sbin/networksetup"
-        process.arguments = ["-getairportnetwork", "en0"]
+        process.arguments = ["-listallhardwareports"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
         process.launch()
         process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return nil }
+
+        var currentPort = ""
+        for line in output.split(separator: "\n") {
+            let l = String(line)
+            if l.hasPrefix("Hardware Port: ") {
+                currentPort = String(l.dropFirst("Hardware Port: ".count)).trimmingCharacters(in: .whitespaces)
+                continue
+            }
+            if currentPort == "Wi-Fi" && l.hasPrefix("Device: ") {
+                return String(l.dropFirst("Device: ".count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+
+        // 没找到 Wi-Fi 的 fallback：尝试常见接口
+        for candidate in ["en0", "en1"] {
+            let test = Process()
+            test.launchPath = "/usr/sbin/networksetup"
+            test.arguments = ["-getairportnetwork", candidate]
+            let testPipe = Pipe()
+            test.standardOutput = testPipe
+            test.standardError = Pipe()
+            test.launch()
+            test.waitUntilExit()
+            if test.terminationStatus == 0 {
+                let d = testPipe.fileHandleForReading.readDataToEndOfFile()
+                if let out = String(data: d, encoding: .utf8), out.contains("Current Wi-Fi Network: ") {
+                    return candidate
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func fetchSSIDViaNetworkSetup(interface: String) -> String? {
+        let process = Process()
+        process.launchPath = "/usr/sbin/networksetup"
+        process.arguments = ["-getairportnetwork", interface]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        process.launch()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else { return nil }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8) else { return nil }
