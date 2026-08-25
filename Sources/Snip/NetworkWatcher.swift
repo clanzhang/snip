@@ -30,6 +30,7 @@ struct NetworkInterface {
     let address: String?
     let netmask: String?
     let isActive: Bool
+    let isHotspot: Bool         // iPhone USB / Bluetooth PAN 热点
 }
 
 // MARK: - 网络监控器
@@ -47,8 +48,9 @@ final class NetworkWatcher {
     // MARK: - 获取网络信息
 
     static func fetch() -> NetworkInfo {
-        let interfaces = fetchInterfaces()
-        let wifi = fetchWiFiInfo()
+        let portMap = fetchHardwarePortMap()
+        let interfaces = fetchInterfaces(portMap: portMap)
+        let wifi = fetchWiFiInfo(portMap: portMap)
         let dns = fetchDNS()
         let publicIP = fetchPublicIP()
         let connectivity = checkConnectivity()
@@ -65,9 +67,59 @@ final class NetworkWatcher {
         )
     }
 
+    // MARK: - 硬件端口映射
+
+    /// 获取接口名 → 硬件端口名 映射 (e.g. "en0" → "Wi-Fi", "en5" → "iPhone USB")
+    private static func fetchHardwarePortMap() -> [String: String] {
+        let process = Process()
+        process.launchPath = "/usr/sbin/networksetup"
+        process.arguments = ["-listallhardwareports"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        process.launch()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else { return [:] }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return [:] }
+
+        var map: [String: String] = [:]
+        var currentPort = ""
+        for line in output.split(separator: "\n") {
+            let l = String(line)
+            if l.hasPrefix("Hardware Port: ") {
+                currentPort = String(l.dropFirst("Hardware Port: ".count)).trimmingCharacters(in: .whitespaces)
+            } else if !currentPort.isEmpty, l.hasPrefix("Device: ") {
+                let iface = String(l.dropFirst("Device: ".count)).trimmingCharacters(in: .whitespaces)
+                map[iface] = currentPort
+                currentPort = ""
+            }
+        }
+        return map
+    }
+
+    /// 硬件端口名 → 显示名
+    private static func displayName(for portName: String) -> String {
+        switch portName {
+        case "Wi-Fi": return "Wi-Fi"
+        case let s where s.contains("iPhone") || s.contains("iPad"): return "个人热点"
+        case "Bluetooth PAN": return "蓝牙热点"
+        case "Thunderbolt Bridge": return "雷雳桥接"
+        case "USB 10/100/1000 LAN": return "USB 网卡"
+        default: return portName
+        }
+    }
+
+    /// 判断是否为热点
+    private static func isHotspotPort(_ portName: String) -> Bool {
+        portName.contains("iPhone") || portName.contains("iPad") || portName == "Bluetooth PAN"
+    }
+
     // MARK: - 网络接口 (ifconfig)
 
-    private static func fetchInterfaces() -> [NetworkInterface] {
+    private static func fetchInterfaces(portMap: [String: String]) -> [NetworkInterface] {
         let process = Process()
         process.launchPath = "/sbin/ifconfig"
         process.arguments = []
@@ -92,12 +144,14 @@ final class NetworkWatcher {
             if !l.hasPrefix("\t") && !l.hasPrefix(" ") {
                 // 保存上一个
                 if !currentName.isEmpty {
+                    let portName = portMap[currentName] ?? currentName
                     interfaces.append(NetworkInterface(
                         name: currentName,
-                        displayName: displayName(for: currentName),
+                        displayName: displayName(for: portName),
                         address: currentAddr,
                         netmask: currentMask,
-                        isActive: currentActive
+                        isActive: currentActive,
+                        isHotspot: isHotspotPort(portName)
                     ))
                 }
                 currentName = String(l.split(separator: ":").first ?? "")
@@ -125,12 +179,14 @@ final class NetworkWatcher {
 
         // 最后一个
         if !currentName.isEmpty {
+            let portName = portMap[currentName] ?? currentName
             interfaces.append(NetworkInterface(
                 name: currentName,
-                displayName: displayName(for: currentName),
+                displayName: displayName(for: portName),
                 address: currentAddr,
                 netmask: currentMask,
-                isActive: currentActive
+                isActive: currentActive,
+                isHotspot: isHotspotPort(portName)
             ))
         }
 
@@ -142,20 +198,9 @@ final class NetworkWatcher {
         return "\(val >> 24).\((val >> 16) & 0xff).\((val >> 8) & 0xff).\(val & 0xff)"
     }
 
-    private static func displayName(for interface: String) -> String {
-        switch interface {
-        case "en0": return "Wi-Fi"
-        case let s where s.hasPrefix("en"): return "Ethernet"
-        case "lo0": return "Loopback"
-        case let s where s.hasPrefix("awdl"): return "AirDrop"
-        case let s where s.hasPrefix("anpi"): return "Apple Note"
-        default: return interface
-        }
-    }
-
     // MARK: - Wi-Fi 信息
 
-    private static func fetchWiFiInfo() -> (ssid: String?, rssi: Int?, channel: Int?) {
+    private static func fetchWiFiInfo(portMap: [String: String]) -> (ssid: String?, rssi: Int?, channel: Int?) {
         // 1. 优先使用 airport 命令（提供最详细的信息）
         let airportPath = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
         if FileManager.default.fileExists(atPath: airportPath) {
@@ -182,12 +227,12 @@ final class NetworkWatcher {
         }
 
         // 2. 回退：遍历所有接口找 Wi-Fi
-        return fetchWiFiInfoViaNetworkSetup()
+        return fetchWiFiInfoViaNetworkSetup(portMap: portMap)
     }
 
-    private static func fetchWiFiInfoViaNetworkSetup() -> (ssid: String?, rssi: Int?, channel: Int?) {
-        // 先找 Wi-Fi 接口名（不一定是 en0）
-        let wifiInterface = findWiFiInterface()
+    private static func fetchWiFiInfoViaNetworkSetup(portMap: [String: String]) -> (ssid: String?, rssi: Int?, channel: Int?) {
+        // 先找 Wi-Fi 或热点接口名
+        let wifiInterface = findWiFiInterface(portMap: portMap)
 
         guard let iface = wifiInterface else {
             return (nil, nil, nil)
@@ -202,29 +247,12 @@ final class NetworkWatcher {
         return (ssid, detail.rssi, detail.channel)
     }
 
-    /// 通过 networksetup -listallhardwareports 找到 Wi-Fi 接口名
-    private static func findWiFiInterface() -> String? {
-        let process = Process()
-        process.launchPath = "/usr/sbin/networksetup"
-        process.arguments = ["-listallhardwareports"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        process.launch()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let output = String(data: data, encoding: .utf8) else { return nil }
-
-        var currentPort = ""
-        for line in output.split(separator: "\n") {
-            let l = String(line)
-            if l.hasPrefix("Hardware Port: ") {
-                currentPort = String(l.dropFirst("Hardware Port: ".count)).trimmingCharacters(in: .whitespaces)
-                continue
-            }
-            if currentPort == "Wi-Fi" && l.hasPrefix("Device: ") {
-                return String(l.dropFirst("Device: ".count)).trimmingCharacters(in: .whitespaces)
+    /// 通过硬件端口映射找到 Wi-Fi 或热点接口名
+    private static func findWiFiInterface(portMap: [String: String]) -> String? {
+        // 1. 从 portMap 中找 Wi-Fi
+        for (iface, port) in portMap {
+            if port == "Wi-Fi" || isHotspotPort(port) {
+                return iface
             }
         }
 
@@ -393,7 +421,7 @@ extension NetworkInfo {
     var summary: String {
         var lines: [String] = []
 
-        // Wi-Fi
+        // Wi-Fi / 热点
         if let ssid = wifiSSID {
             let signal = wifiRSSI.map { "\($0) dBm (\(signalStrength))" } ?? "N/A"
             lines.append("📶 Wi-Fi: \(ssid)  信号: \(signal)")
@@ -401,7 +429,16 @@ extension NetworkInfo {
                 lines.append("   频道: \(ch)")
             }
         } else {
-            lines.append("📶 Wi-Fi: 未连接")
+            // 检查是否有热点连接
+            let hotspots = interfaces.filter { $0.isHotspot && $0.isActive && $0.address != nil }
+            if !hotspots.isEmpty {
+                for h in hotspots {
+                    let addr = h.address ?? "N/A"
+                    lines.append("📱 热点: \(h.displayName) (\(h.name)) — \(addr)")
+                }
+            } else {
+                lines.append("📶 Wi-Fi: 未连接")
+            }
         }
 
         // 活跃接口
