@@ -322,7 +322,7 @@ struct ClipCommand {
             fputs("用法: snip clip autostart on|off\n", stderr)
             exit(1)
         }
-        let binary = URL(fileURLWithPath: CommandLine.arguments[0]).path
+        let binary = ClipDaemon.currentExecutablePath() ?? URL(fileURLWithPath: CommandLine.arguments[0]).path
         if mode == "on" {
             if ClipDaemon.installLaunchAgent(binaryPath: binary) {
                 print("✅ 开机自启已开启")

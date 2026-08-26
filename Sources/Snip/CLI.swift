@@ -40,7 +40,7 @@ struct CLI {
     }
 
     func printVersion() {
-        print("snip v0.1.18")
+        print("snip v0.1.19")
     }
 
     // MARK: - 辅助

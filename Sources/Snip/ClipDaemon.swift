@@ -53,10 +53,26 @@ struct ClipDaemon {
 
     // MARK: - 启动 / 停止
 
+    /// 当前可执行文件真实路径（解析符号链接），不依赖 argv[0]
+    static func currentExecutablePath() -> String? {
+        var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
+        var size = UInt32(buf.count)
+        guard _NSGetExecutablePath(&buf, &size) == 0 else { return nil }
+        if let resolved = realpath(buf, nil) {
+            defer { free(resolved) }
+            return String(cString: resolved)
+        }
+        return String(cString: buf)
+    }
+
     /// 从父进程启动后台子进程（detach），立即返回
     @discardableResult
     static func startDaemon() -> Bool {
         guard !isRunning() else { return false }
+        guard let exec = currentExecutablePath() else {
+            fputs("❌ 无法确定当前可执行文件路径\n", stderr)
+            return false
+        }
 
         try? FileManager.default.createDirectory(
             at: logFileURL.deletingLastPathComponent(),
@@ -66,7 +82,7 @@ struct ClipDaemon {
         let logHandle = FileHandle(forWritingAtPath: logFileURL.path)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        process.executableURL = URL(fileURLWithPath: exec)
         process.arguments = ["clip", "record", "--daemon-child"]
         if let logHandle {
             process.standardOutput = logHandle

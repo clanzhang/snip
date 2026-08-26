@@ -10,7 +10,7 @@ struct ReportGenerator {
         var report = ""
         report += "Snip 诊断报告\n"
         report += "============\n\n"
-        report += "版本: v0.1.18\n"
+        report += "版本: v0.1.19\n"
         report += "生成时间: \(ISO8601DateFormatter().string(from: Date()))\n\n"
 
         // 系统信息
