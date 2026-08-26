@@ -34,6 +34,12 @@ struct ClipCommand {
             runClear()
         case .record:
             runRecord()
+        case .stop:
+            runStop()
+        case .status:
+            runStatus()
+        case .autostart:
+            runAutostart()
         }
     }
 
@@ -52,6 +58,10 @@ struct ClipCommand {
           snip clip delete <id>        删除一条
           snip clip clear              清空全部（默认需确认，--yes/-y 跳过）
           snip clip record             监控模式：复制自动入库（--interval 可调，--max 调整上限）
+          snip clip record --daemon    后台常驻记录（日志: ~/Library/Logs/snip/clipd.log）
+          snip clip stop               停止后台记录
+          snip clip status             查看后台记录状态
+          snip clip autostart on/off   开机自启（LaunchAgent）
 
         历史存储位置: \(HistoryStore.defaultDirectory().path)
         上限: 默认 500 条（--max 调整），置顶条目不受裁剪影响
@@ -217,8 +227,42 @@ struct ClipCommand {
     // MARK: - record（监控入库）
 
     private func runRecord() {
+        // 后台守护模式：父进程启动子进程后立即退出
+        if opts.daemon {
+            if ClipDaemon.isRunning() {
+                print("ℹ️ 后台记录已在运行（PID: \(ClipDaemon.readPid() ?? 0)）")
+                return
+            }
+            if ClipDaemon.startDaemon() {
+                // 等子进程写 PID 文件
+                for _ in 0..<20 {
+                    if ClipDaemon.isRunning() { break }
+                    usleep(100_000)
+                }
+                if let pid = ClipDaemon.readPid() {
+                    print("✅ 后台记录已启动 (PID: \(pid))")
+                    print("   日志: \(ClipDaemon.logFileURL.path)")
+                    print("   snip clip status 查看状态，snip clip stop 停止")
+                } else {
+                    print("✅ 后台记录已启动")
+                }
+            }
+            return
+        }
+
+        // 守护子进程：写 PID 文件后正常运行
+        if opts.daemonChild {
+            ClipDaemon.writePidFile(pid: getpid())
+            setvbuf(stdout, nil, _IONBF, 0)   // 日志实时写入文件（禁用缓冲）
+        }
+
         signal(SIGINT) { _ in
             print("\n已停止。")
+            exit(0)
+        }
+        // 子进程被 kill 时清理 PID 文件
+        signal(SIGTERM) { _ in
+            ClipDaemon.removePidFile()
             exit(0)
         }
         let watcher = ClipboardWatcher(interval: opts.interval, contentPreview: 0)
@@ -249,6 +293,53 @@ struct ClipCommand {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         app.run()
+    }
+
+    // MARK: - 守护进程管理
+
+    private func runStop() {
+        if ClipDaemon.stop() {
+            print("🛑 后台记录已停止。")
+        } else {
+            print("ℹ️ 后台记录未在运行。")
+        }
+    }
+
+    private func runStatus() {
+        if let pid = ClipDaemon.readPid(), ClipDaemon.isRunning() {
+            print("✅ 后台记录运行中 (PID: \(pid))")
+            print("   历史条数: \(store.count)")
+            print("   日志: \(ClipDaemon.logFileURL.path)")
+            print("   开机自启: \(ClipDaemon.autostartEnabled() ? "已开启" : "未开启")")
+        } else {
+            print("⏸ 后台记录未运行。")
+            print("   启动: snip clip record --daemon")
+        }
+    }
+
+    private func runAutostart() {
+        guard let mode = opts.id, mode == "on" || mode == "off" else {
+            fputs("用法: snip clip autostart on|off\n", stderr)
+            exit(1)
+        }
+        let binary = URL(fileURLWithPath: CommandLine.arguments[0]).path
+        if mode == "on" {
+            if ClipDaemon.installLaunchAgent(binaryPath: binary) {
+                print("✅ 开机自启已开启")
+                print("   plist: \(ClipDaemon.launchAgentURL.path)")
+                print("   下次登录自动记录剪贴板历史")
+            } else {
+                fputs("❌ 开机自启开启失败\n", stderr)
+                exit(1)
+            }
+        } else {
+            if ClipDaemon.removeLaunchAgent() {
+                print("✅ 开机自启已关闭")
+            } else {
+                fputs("❌ 开机自启关闭失败\n", stderr)
+                exit(1)
+            }
+        }
     }
 
     // MARK: - 输出辅助

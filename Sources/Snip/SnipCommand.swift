@@ -83,10 +83,12 @@ struct ClipOptions {
     var max: Int = 500
     var id: String?
     var text: String?
+    var daemon: Bool = false          // record --daemon 后台常驻
+    var daemonChild: Bool = false     // 内部参数：守护子进程
 }
 
 enum ClipAction: String {
-    case list, show, add, edit, pin, unpin, delete, clear, record, help
+    case list, show, add, edit, pin, unpin, delete, clear, record, stop, status, autostart, help
 }
 
 // MARK: - 命令枚举
@@ -357,6 +359,10 @@ enum SnipCommand {
                 opts.limit = Int(String(a.dropFirst("--limit=".count)))
             case "--json":
                 opts.json = true
+            case "--daemon":
+                opts.daemon = true
+            case "--daemon-child":
+                opts.daemonChild = true
             case "--pinned":
                 opts.pinnedOnly = true
             case "--no-copy":

@@ -101,6 +101,10 @@ snip clip unpin <id>          # 取消置顶
 snip clip delete <id>         # 删除一条
 snip clip clear               # 清空全部（默认需确认，--yes/-y 跳过）
 snip clip record              # 监控模式：复制自动入库
+snip clip record --daemon     # 后台常驻：随时复制自动记录（日志 ~/Library/Logs/snip/clipd.log）
+snip clip stop                # 停止后台记录
+snip clip status              # 查看后台记录状态
+snip clip autostart on/off    # 开机自启（LaunchAgent）
 ```
 
 - 历史默认保留最近 **500 条**（`record --max` 可调），置顶条目不受裁剪影响
