@@ -33,6 +33,8 @@ case .network(let opts):
     cli.runNetwork(opts: opts)
 case .cpu(let opts):
     cli.runCPU(opts: opts)
+case .clip(let opts):
+    cli.runClip(opts: opts)
 case .unknown(let cmd):
     fputs("未知命令: \(cmd)\n\n", stderr)
     cli.printHelp()

@@ -19,6 +19,7 @@ struct CLI {
           battery    查看电池状态
           network    查看网络状态
           cpu        查看 CPU 状态
+          clip       剪贴板历史管理（list/show/add/edit/pin/delete/clear/record）
           doctor     系统诊断
           test       功能测试
           stats      查看统计
@@ -459,6 +460,12 @@ struct CLI {
            let json = String(data: data, encoding: .utf8) {
             print(json)
         }
+    }
+
+    // MARK: - clip
+
+    func runClip(opts: ClipOptions) {
+        ClipCommand(opts: opts).run()
     }
 
     // MARK: - cpu

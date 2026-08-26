@@ -70,6 +70,25 @@ struct CPUOptions {
     var json: Bool = false
 }
 
+struct ClipOptions {
+    var action: ClipAction = .list
+    var recentOnly: Bool = true      // 无子命令时只看最近 20 条
+    var search: String?
+    var limit: Int?
+    var json: Bool = false
+    var pinnedOnly: Bool = false
+    var noCopy: Bool = false
+    var yes: Bool = false
+    var interval: TimeInterval = 0.3
+    var max: Int = 500
+    var id: String?
+    var text: String?
+}
+
+enum ClipAction: String {
+    case list, show, add, edit, pin, unpin, delete, clear, record, help
+}
+
 // MARK: - 命令枚举
 
 enum SnipCommand {
@@ -86,6 +105,7 @@ enum SnipCommand {
     case battery(BatteryOptions)
     case network(NetworkOptions)
     case cpu(CPUOptions)
+    case clip(ClipOptions)
     case unknown(String)
 
     init(args: [String]) {
@@ -124,6 +144,8 @@ enum SnipCommand {
             self = .network(Self.parseNetwork(rest))
         case "cpu":
             self = .cpu(Self.parseCPU(rest))
+        case "clip":
+            self = .clip(Self.parseClip(rest))
         default:
             self = .unknown(sub)
         }
@@ -313,6 +335,65 @@ enum SnipCommand {
                 opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 3.0
             default: break
             }
+        }
+        return opts
+    }
+
+    private static func parseClip(_ args: [String]) -> ClipOptions {
+        var opts = ClipOptions()
+        var positionals: [String] = []
+
+        var i = 0
+        while i < args.count {
+            let a = args[i]
+            switch a {
+            case "--search":
+                if i + 1 < args.count { opts.search = args[i + 1]; i += 1 }
+            case let a where a.hasPrefix("--search="):
+                opts.search = String(a.dropFirst("--search=".count))
+            case "--limit":
+                if i + 1 < args.count { opts.limit = Int(args[i + 1]); i += 1 }
+            case let a where a.hasPrefix("--limit="):
+                opts.limit = Int(String(a.dropFirst("--limit=".count)))
+            case "--json":
+                opts.json = true
+            case "--pinned":
+                opts.pinnedOnly = true
+            case "--no-copy":
+                opts.noCopy = true
+            case "--yes", "-y":
+                opts.yes = true
+            case "--interval":
+                if i + 1 < args.count { opts.interval = Double(args[i + 1]) ?? 0.3; i += 1 }
+            case let a where a.hasPrefix("--interval="):
+                opts.interval = Double(String(a.dropFirst("--interval=".count))) ?? 0.3
+            case "--max":
+                if i + 1 < args.count { opts.max = Int(args[i + 1]) ?? 500; i += 1 }
+            case let a where a.hasPrefix("--max="):
+                opts.max = Int(String(a.dropFirst("--max=".count))) ?? 500
+            case "--help", "-h":
+                opts.action = .help
+            default:
+                positionals.append(a)
+            }
+            i += 1
+        }
+
+        // 第一个位置参数是子命令
+        if let first = positionals.first, let action = ClipAction(rawValue: first), action != .help {
+            opts.action = action
+            opts.recentOnly = false
+            positionals.removeFirst()
+        }
+
+        switch opts.action {
+        case .add:
+            opts.text = positionals.first
+        case .edit:
+            if positionals.count >= 1 { opts.id = positionals[0] }
+            if positionals.count >= 2 { opts.text = positionals[1] }
+        default:
+            opts.id = positionals.first
         }
         return opts
     }

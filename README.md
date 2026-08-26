@@ -4,11 +4,13 @@ macOS 剪贴板 & 快捷键诊断工具，用于排查 Command+C / Command+V 不
 
 ## 隐私说明
 
-- Snip **默认不记录**用户输入的文字内容
-- Snip **默认不记录**完整剪贴板内容
+- Snip **默认不记录**按键字符内容（键盘监控需 `--unsafe-chars` 才输出）
+- 剪贴板历史功能（`snip clip record`）会把剪贴板**文本内容**保存在本地 `~/Library/Application Support/snip/history/`，**仅本地使用、绝不上传**
 - Snip **只在本地运行**，不会上传任何数据
 - 使用 `--unsafe-chars` 或 `--content-preview` 时才可能显示敏感内容
 - 所有日志默认保存在 `~/Library/Logs/snip/`
+
+> 不想留下剪贴板历史？`snip clip clear` 一键清空，或删除 `~/Library/Application Support/snip/history/` 目录。
 
 ## 安装
 
@@ -53,6 +55,7 @@ brew untap clanzhang/tap
 | `snip test --keys` | 输入监控 | 同上 |
 | `snip network` | 无 | — |
 | `snip cpu` | 无 | — |
+| `snip clip` | 无 | — |
 
 ## 命令列表
 
@@ -64,6 +67,7 @@ brew untap clanzhang/tap
 | `snip battery` | 查看电池电量、健康度、温度 |
 | `snip network` | 查看网络状态（Wi-Fi、DNS、连通性） |
 | `snip cpu` | 查看 CPU 状态（型号、负载、使用率、Top 进程） |
+| `snip clip` | 剪贴板历史管理（增删改查） |
 | `snip doctor` | 系统诊断 |
 | `snip test --clipboard` | 测试剪贴板底层 |
 | `snip test --keys` | 测试全局快捷键 |
@@ -81,6 +85,28 @@ brew untap clanzhang/tap
 | `--all-keys` | 所有按键元数据 | keys |
 | `--unsafe-chars` | 输出按键字符（⚠️ 隐私警告） | keys |
 | `--keys "cmd+c,cmd+v"` | 自定义快捷键 | keys |
+
+## 剪贴板历史管理（snip clip）
+
+类似 Maccy/Clipy 的剪贴板管理器：复制的内容自动入库，支持增删改查。
+
+```bash
+snip clip                     # 显示最近 20 条
+snip clip list                # 列出全部（--search 关键词 / --limit N / --json / --pinned）
+snip clip show <id>           # 查看完整内容并复制到剪贴板（--no-copy 只看不复制）
+snip clip add "文本"           # 写入剪贴板并入库
+snip clip edit <id> "新文本"   # 修改内容，同步写入剪贴板
+snip clip pin <id>            # 置顶（不受上限裁剪影响）
+snip clip unpin <id>          # 取消置顶
+snip clip delete <id>         # 删除一条
+snip clip clear               # 清空全部（默认需确认，--yes/-y 跳过）
+snip clip record              # 监控模式：复制自动入库
+```
+
+- 历史默认保留最近 **500 条**（`record --max` 可调），置顶条目不受裁剪影响
+- 相邻相同内容自动去重，只更新时间
+- 图片/文件只记录元数据，不保存内容
+- 数据位置：`~/Library/Application Support/snip/history/`（每条一个 `.txt` + `index.json`）
 
 ## 常见排查流程
 
@@ -152,6 +178,7 @@ swift run snip report
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.1.17 | 2026-08-26 | 剪贴板历史管理：`snip clip` 增删改查、置顶、去重、自动入库 |
 | v0.1.13 | 2026-08-25 | 热点检测：iPhone USB / 蓝牙热点识别，接口名动态查找 |
 | v0.1.12 | 2026-08-25 | 修复 Wi-Fi 接口名硬编码 en0，动态检测 |
 | v0.1.11 | 2026-08-25 | 网络诊断：Wi-Fi、DNS、公网 IP、连通性检测 |
